@@ -1,0 +1,6 @@
+{
+    "uri": "<mongo uri here>",
+    "jwtSecret": "secretkey",
+    "port": 3000
+}
+  

@@ -99,7 +99,7 @@
         if (response.ok) {
           const result = await response.json();
           // localStorage.setItem("token", result.token);
-          console.log(result)
+          console.log(result);
           const loginUsername = result.username;
           loginForm.style.display = "none";
           testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
@@ -113,87 +113,109 @@
         console.log("Token removed from localStorage. (Error 2)")
       }
     }
-};
+  };
 
 
-    showSignup.addEventListener("click", e => {
-    e.preventDefault();
-      signupForm.style.display = "block";
-      loginForm.style.display = "none";
-    });
+  showSignup.addEventListener("click", e => {
+  e.preventDefault();
+    signupForm.style.display = "block";
+    loginForm.style.display = "none";
+  });
 
-    signupForm.addEventListener("submit", e => {
-      e.preventDefault();
-      const signupUsername = document.querySelector("#signupUsername").value;
-      const signupPassword = document.querySelector("#signupPassword").value;
-      fetch("http://localhost:3000/signup", {
-        method: "POST",
+    signupForm.addEventListener("submit", async (e) => {
+   e.preventDefault();
+   const signupUsername = document.querySelector("#signupUsername").value;
+   const signupPassword = document.querySelector("#signupPassword").value;
+   try {
+     const response = await fetch("http://localhost:3000/signup", {
+       method: "POST",
         headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
+         "Content-Type": "application/json",
+       },
+       body: JSON.stringify({
           username: signupUsername,
-          password: signupPassword
-        })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.error) {
-            message.innerHTML = data.error;
-          } else {
-            message.innerHTML = "Sign up successful. You can now log in.";
-            signupForm.style.display = "none";
-            loginForm.style.display = "block";
-          }
-        });
-    });
+          password: signupPassword,
+       }),
+     });
+     const data = await response.json();
+     if (response.status === 200) {
+       // handle successful sign up
+       message.innerHTML = data.message;
+       signupForm.style.display = "none";
+       loginForm.style.display = "block";
+     } else if (response.status === 429) {
+        // handle rate limit error
+        message.innerHTML = data.message;
+     } else {
+        // handle other errors, such as username already taken
+        message.innerHTML = data.error;
+      }
+    } catch (error) {
+      // handle fetch error
+      message.innerHTML = "An error occurred. Please try again later.";
+    }
+  });
 
-    loginForm.addEventListener("submit", e => {
-      e.preventDefault();
-      const loginUsername = document.querySelector("#loginUsername").value;
-      const loginPassword = document.querySelector("#loginPassword").value;
-      fetch("http://localhost:3000/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          username: loginUsername,
-          password: loginPassword
-        })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.error) {
-            message.innerHTML = data.error;
-          } else {
-            testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
-            message.innerHTML = "Login successful.";
-            localStorage.setItem("token", data.token);
-            testForm.style.display = "block";
-            loginForm.style.display = "none";
-          }
-        });
-    });
 
-    testForm.addEventListener("submit", e => {
-      e.preventDefault();
-      const token = localStorage.getItem("token");
-      fetch("http://localhost:3000/test", {
-        method: "GET",
-        headers: {
-          "Authorization": `${token}`
-        }
-      })
-        .then(res => res.json()) 
-        .then(data => {
-          if (data.error) {
-            message.innerHTML = data.error;
-          } else {
-            message.innerHTML = "Access granted. Test endpoint successful.";
-          }
-        });
-    });
+  loginForm.addEventListener("submit", async (e) => {
+   e.preventDefault();
+   const loginUsername = document.querySelector("#loginUsername").value;
+   const loginPassword = document.querySelector("#loginPassword").value;
+   try {
+     const response = await fetch("http://localhost:3000/login", {
+       method: "POST",
+       headers: {
+         "Content-Type": "application/json",
+       },
+       body: JSON.stringify({
+         username: loginUsername,
+         password: loginPassword,
+       }),
+     });
+     const data = await response.json();
+     if (response.status === 200) {
+       // handle successful login
+       message.innerHTML = "Login successful.";
+       localStorage.setItem("token", data.token);
+       testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
+        testForm.style.display = "block";
+       loginForm.style.display = "none";
+     } else if (response.status === 401) {
+       // handle incorrect login credentials
+       message.innerHTML = data.error;
+     } else if (response.status === 429) {
+       // handle rate limit error
+       message.innerHTML = data.message;
+     } else {
+       // handle other errors
+       message.innerHTML = "An error occurred while logging in.";
+     }
+   } catch (error) {
+      // handle fetch error
+     message.innerHTML = "An error occurred while logging in.";
+    }
+  });
+
+
+
+  testForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
+    fetch("http://localhost:3000/test", {
+      method: "GET",
+      headers: {
+         "Authorization": `${token}`
+       }
+     })
+       .then(res => res.json()) 
+       .then(data => {
+         if (data.error) {
+           message.innerHTML = data.error;
+        } else {
+           message.innerHTML = "Access granted. Test endpoint successful.";
+         }
+       });
+   });
   </script>
 </body>
 </html>

@@ -11,18 +11,29 @@ app.use(cors());
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many login attempts from this IP, please try again after 15 minutes"
+  max: 10, // limit each IP to 100 requests per windowMs
+  message: { message: "Too many login attempts from this IP, please try again after 15 minutes." }
 });
 
-app.post("/signup", async (req, res) => {
+const signupLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  max: 2, // limit each IP to 2 requests per windowMs
+  message: { message: "Too many signup attempts from this IP, please try again after 30 minutes." }
+});
+
+app.post("/signup", signupLimiter, async (req, res) => {
   const { username, password } = req.body;
   const client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true });
   const db = client.db("userDB");
   const collection = db.collection("users");
-  const result = await collection.insertOne({ username, password });
-  client.close();
-  res.send("Sign up successful");
+  const user = await collection.findOne({ username });
+  if (user) {
+    res.status(400).json({ error: "Username already taken" });
+  } else {
+    const result = await collection.insertOne({ username, password });
+    client.close();
+    res.json({ message: "Sign up successful" });
+  }
 });
 
 app.post("/login", loginLimiter, async (req, res) => {
@@ -30,16 +41,19 @@ app.post("/login", loginLimiter, async (req, res) => {
   const client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true });
   const db = client.db("userDB");
   const collection = db.collection("users");
+
+  // Check if the username exists
   const user = await collection.findOne({ username, password });
   client.close();
   if (user) {
     const token = jwt.sign({ id: user._id }, config.jwtSecret, { expiresIn: '1h' });
     console.log("--> A visitor logged in. Token: " + token) //Debug
-    res.send({ token });
+    res.status(200).json({ message: "Login successful", token });
   } else {
-    res.status(401).send("Invalid username or password");
+    res.status(401).json({ error: "Invalid username or password" });
   }
 });
+
 
 
 app.post("/verify", async (req, res) => {

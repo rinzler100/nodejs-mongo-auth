@@ -104,6 +104,7 @@
           loginForm.style.display = "none";
           testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
           testForm.style.display = "block";
+          message.innerHTML = "Session verified.";
         } else {
           localStorage.removeItem("token");
           console.log("Token removed from localStorage. (Error 1)")
@@ -122,7 +123,7 @@
     loginForm.style.display = "none";
   });
 
-    signupForm.addEventListener("submit", async (e) => {
+  signupForm.addEventListener("submit", async (e) => {
    e.preventDefault();
    const signupUsername = document.querySelector("#signupUsername").value;
    const signupPassword = document.querySelector("#signupPassword").value;
@@ -146,13 +147,19 @@
      } else if (response.status === 429) {
         // handle rate limit error
         message.innerHTML = data.message;
+     } else if (response.status === 400) {
+        // username already taken error
+        message.innerHTML = data.error;
+     } else if (response.status === 500) {
+        // handle server error
+        message.innerHTML = data.error;
      } else {
-        // handle other errors, such as username already taken
+        // handle other unexpected errors
         message.innerHTML = data.error;
       }
     } catch (error) {
       // handle fetch error
-      message.innerHTML = "An error occurred. Please try again later.";
+      message.innerHTML = "Unable to connect to server.";
     }
   });
 
@@ -186,13 +193,16 @@
      } else if (response.status === 429) {
        // handle rate limit error
        message.innerHTML = data.message;
+     } else if (response.status === 500) {
+       // handle server error
+       message.innerHTML = "The server experienced an internal error.";
      } else {
        // handle other errors
        message.innerHTML = "An error occurred while logging in.";
      }
    } catch (error) {
       // handle fetch error
-     message.innerHTML = "An error occurred while logging in.";
+     message.innerHTML = "Unable to connect to server.";
     }
   });
 

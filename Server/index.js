@@ -23,7 +23,15 @@ const signupLimiter = rateLimit({
 
 app.post("/signup", signupLimiter, async (req, res) => {
   const { username, password } = req.body;
-  const client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true });
+  let client;
+  try {
+    client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true });
+  } catch (error) {
+    console.log("--> Error connecting to MongoDB: " + error)
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+  
   const db = client.db("userDB");
   const collection = db.collection("users");
   const user = await collection.findOne({ username });
@@ -38,7 +46,14 @@ app.post("/signup", signupLimiter, async (req, res) => {
 
 app.post("/login", loginLimiter, async (req, res) => {
   const { username, password } = req.body;
-  const client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true });
+  let client;
+  try { 
+    client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true }); 
+  } catch (error) {
+    console.log("--> Error connecting to MongoDB: " + error)
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
   const db = client.db("userDB");
   const collection = db.collection("users");
 

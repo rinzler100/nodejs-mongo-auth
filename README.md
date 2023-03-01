@@ -8,7 +8,7 @@ My little test for authorized requests to a nodejs server using nodejs, json web
  - [x] Login
  - [x] Verify session
  - [x] Test authorized endpoint
- - [ ] Encrypt passwords before storing in MongoDB
+ - [x] Encrypt passwords before storing in MongoDB
 
 ## Quick Start Guide
 

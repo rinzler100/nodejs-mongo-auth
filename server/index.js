@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongodb = require("mongodb");
 const rateLimit = require("express-rate-limit");
 const config = require("./config.json");
+const bcrypt = require("bcrypt");
 
 const app = express();
 app.use(express.json());
@@ -34,13 +35,35 @@ app.post("/signup", signupLimiter, async (req, res) => {
   
   const db = client.db("userDB");
   const collection = db.collection("users");
-  const user = await collection.findOne({ username });
+  const user = await collection.findOne({ Username: username });
   if (user) {
     res.status(400).json({ error: "Username already taken" });
   } else {
-    const result = await collection.insertOne({ username, password });
-    client.close();
-    res.json({ message: "Sign up successful" });
+    // Generate a salt with a cost factor of 10
+  bcrypt.genSalt(10, (err, result) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+
+    // Store the salt in a variable
+    salt = result;
+    console.log('Generated salt:', salt);
+
+    bcrypt.hash(password, salt, (err, hash) => {
+     if (err) {
+        console.error(err);
+        return;
+      }
+      storeEncryptedPassword(hash, username);
+     // Store the hash with username in the database
+      async function storeEncryptedPassword (password, username) {
+       const result = await collection.insertOne({ Username: username, Password: password });
+       client.close();
+       res.json({ message: "Sign up successful" });
+      }
+    });
+  });   
   }
 });
 
@@ -57,15 +80,39 @@ app.post("/login", loginLimiter, async (req, res) => {
   const db = client.db("userDB");
   const collection = db.collection("users");
 
-  // Check if the username exists
-  const user = await collection.findOne({ username, password });
-  client.close();
-  if (user) {
-    const token = jwt.sign({ id: user._id }, config.jwtSecret, { expiresIn: '1h' });
-    console.log("--> A visitor logged in. Token: " + token) //Debug
-    res.status(200).json({ message: "Login successful", token });
-  } else {
-    res.status(401).json({ error: "Invalid username or password" });
+  let user;
+
+  try {
+    // Retrieve the user's hashed password from the database based on their username
+    user = await collection.findOne({ Username: username });
+    console.log(username)
+
+    if (!user) {
+      console.log('--> Login attempted for non-existent user.');
+      return;
+    }
+
+    // Use bcrypt to compare the hashed password with the plaintext password entered by the user
+    bcrypt.compare(password, user.Password, (err, result) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+
+      if (result) {
+        // Password is correct
+        const token = jwt.sign({ id: user._id }, config.jwtSecret, { expiresIn: '1h' });
+        console.log("--> A visitor logged in. Token: " + token) //Debug
+        res.status(200).json({ message: "Login successful", token });
+      } else {
+        // Password is incorrect
+        res.status(401).json({ error: "Invalid username or password" });
+      }
+    });
+  } catch (err) {
+    console.error(err);
+  } finally {
+    await client.close();
   }
 });
 
@@ -98,7 +145,7 @@ app.post("/verify", async (req, res) => {
       return;
     }
 
-    res.json({ "token": token, "username": user.username });
+    res.json({ "token": token, "username": user.Username });
   } catch (error) {
     console.log("--> Session used an invalid token: " + error)
     res.status(401).json({ message: "Invalid token" });
@@ -115,7 +162,7 @@ app.get("/test", (req, res) => {
     const decoded = jwt.verify(token, config.jwtSecret);
     res.json({"message": `Authorized, success.`});
   } catch (error) {
-    res.status(400).json({"message": `Authorized, error.`});
+    res.status(400).json({"error": `Access denied, invalid token. (Refresh to login)`});
   }
 });
 

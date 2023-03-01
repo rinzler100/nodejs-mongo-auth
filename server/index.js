@@ -80,7 +80,6 @@ app.post("/login", loginLimiter, async (req, res) => {
   const db = client.db("userDB");
   const collection = db.collection("users");
 
-  let authorized;
   let user;
 
   try {

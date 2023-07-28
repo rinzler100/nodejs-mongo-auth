@@ -225,6 +225,9 @@
         } else {
            message.innerHTML = "Access granted. Test endpoint successful.";
          }
+       }).catch(err => {
+        // handle fetch error caused by server being inaccessible
+         message.innerHTML = "Unable to connect to server.";
        });
    });
   </script>

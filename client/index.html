@@ -76,6 +76,15 @@
     </form>
     <div class="message" id="message"></div>
   </div>
+  
+  <div id="adminButton" style="display: none;">
+    <button id="adminTest">Test Admin Endpoint</button>
+  </div>
+  
+  <div id="moderatorButton" style="display: none;">
+    <button id="moderatorTest">Test Moderator Endpoint</button>
+  </div>
+
   <script>
     const signupForm = document.querySelector("#signupForm");
     const loginForm = document.querySelector("#loginForm");
@@ -84,12 +93,141 @@
     const showSignup = document.querySelector("#showSignup");
     const testFormTitle = document.querySelector("#testFormTitle");
 
-  window.onload = async () => {
-    const token = localStorage.getItem("token");
-    if (token) {
+    window.onload = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const response = await fetch("http://localhost:3000/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `${token}`
+            }
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            const loginUsername = result.username;
+            loginForm.style.display = "none";
+            testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
+            testForm.style.display = "block";
+            message.innerHTML = "Session verified.";
+          } else {
+            localStorage.removeItem("token");
+            console.log("Token removed from localStorage. (Error 1)")
+          }
+        } catch (error) {
+          localStorage.removeItem("token");
+          console.log("Token removed from localStorage. (Error 2)")
+        }
+      }
+      await updateVisibilityBasedOnRole();
+    };
+
+    showSignup.addEventListener("click", e => {
+      e.preventDefault();
+      signupForm.style.display = "block";
+      loginForm.style.display = "none";
+    });
+
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const signupUsername = document.querySelector("#signupUsername").value;
+      const signupPassword = document.querySelector("#signupPassword").value;
+
       try {
-        const response = await fetch("http://localhost:3000/verify", {
+        const response = await fetch("http://localhost:3000/signup", {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: signupUsername,
+            password: signupPassword,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 200) {
+          message.innerHTML = data.message;
+        } else {
+          message.innerHTML = data.error;
+        }
+      } catch (error) {
+        message.innerHTML = "Failed to Sign Up";
+      }
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loginUsername = document.querySelector("#loginUsername").value;
+      const loginPassword = document.querySelector("#loginPassword").value;
+
+      try {
+        const response = await fetch("http://localhost:3000/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: loginUsername,
+            password: loginPassword,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 200) {
+          localStorage.setItem("token", data.token);
+          loginForm.style.display = "none";
+          testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
+          testForm.style.display = "block";
+          message.innerHTML = data.message;
+          await updateVisibilityBasedOnRole();
+        } else {
+          message.innerHTML = data.error;
+        }
+      } catch (error) {
+        message.innerHTML = "Failed to Login";
+      }
+    });
+
+    testForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const token = localStorage.getItem("token");
+
+      try {
+        const response = await fetch("http://localhost:3000/test", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (response.status === 200) {
+          message.innerHTML = data.message;
+        } else {
+          message.innerHTML = data.error;
+        }
+      } catch (error) {
+        message.innerHTML = "Failed to access endpoint.";
+      }
+    });
+
+    async function getRoles() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        return null;
+      }
+
+      try {
+        const response = await fetch("http://localhost:3000/roles", {
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `${token}`
@@ -97,139 +235,53 @@
         });
 
         if (response.ok) {
-          const result = await response.json();
-          // localStorage.setItem("token", result.token);
-          console.log(result);
-          const loginUsername = result.username;
-          loginForm.style.display = "none";
-          testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
-          testForm.style.display = "block";
-          message.innerHTML = "Session verified.";
-        } else {
-          localStorage.removeItem("token");
-          console.log("Token removed from localStorage. (Error 1)")
+          const { role } = await response.json();
+          return role;
         }
       } catch (error) {
-        localStorage.removeItem("token");
-        console.log("Token removed from localStorage. (Error 2)")
+        console.log(error);
       }
+
+      return null;
     }
-  };
 
+    async function testEndpoint(role, endpoint) {
+      const token = localStorage.getItem("token");
 
-  showSignup.addEventListener("click", e => {
-  e.preventDefault();
-    signupForm.style.display = "block";
-    loginForm.style.display = "none";
-  });
+      try {
+        const response = await fetch(`http://localhost:3000${endpoint}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+            "Role": role
+          },
+        });
 
-  signupForm.addEventListener("submit", async (e) => {
-   e.preventDefault();
-   const signupUsername = document.querySelector("#signupUsername").value;
-   const signupPassword = document.querySelector("#signupPassword").value;
-   try {
-     const response = await fetch("http://localhost:3000/signup", {
-       method: "POST",
-        headers: {
-         "Content-Type": "application/json",
-       },
-       body: JSON.stringify({
-          username: signupUsername,
-          password: signupPassword,
-       }),
-     });
-     const data = await response.json();
-     if (response.status === 200) {
-       // handle successful sign up
-       message.innerHTML = data.message;
-       signupForm.style.display = "none";
-       loginForm.style.display = "block";
-     } else if (response.status === 429) {
-        // handle rate limit error
-        message.innerHTML = data.message;
-     } else if (response.status === 400) {
-        // username already taken error
-        message.innerHTML = data.error;
-     } else if (response.status === 500) {
-        // handle server error
-        message.innerHTML = data.error;
-     } else {
-        // handle other unexpected errors
-        message.innerHTML = data.error;
-      }
-    } catch (error) {
-      // handle fetch error
-      message.innerHTML = "Unable to connect to server.";
-    }
-  });
+        const data = await response.json();
 
-
-  loginForm.addEventListener("submit", async (e) => {
-   e.preventDefault();
-   const loginUsername = document.querySelector("#loginUsername").value;
-   const loginPassword = document.querySelector("#loginPassword").value;
-   try {
-     const response = await fetch("http://localhost:3000/login", {
-       method: "POST",
-       headers: {
-         "Content-Type": "application/json",
-       },
-       body: JSON.stringify({
-         username: loginUsername,
-         password: loginPassword,
-       }),
-     });
-     const data = await response.json();
-     if (response.status === 200) {
-       // handle successful login
-       message.innerHTML = "Login successful.";
-       localStorage.setItem("token", data.token);
-       testFormTitle.innerHTML = `Welcome, ${loginUsername}`;
-        testForm.style.display = "block";
-       loginForm.style.display = "none";
-     } else if (response.status === 401) {
-       // handle incorrect login credentials
-       message.innerHTML = data.error;
-     } else if (response.status === 429) {
-       // handle rate limit error
-       message.innerHTML = data.message;
-     } else if (response.status === 500) {
-       // handle server error
-       message.innerHTML = "The server experienced an internal error.";
-     } else {
-       // handle other errors
-       message.innerHTML = "An error occurred while logging in.";
-     }
-   } catch (error) {
-      // handle fetch error
-     message.innerHTML = "Unable to connect to server.";
-    }
-  });
-
-
-
-  testForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
-    fetch("http://localhost:3000/test", {
-      method: "GET",
-      headers: {
-         "Authorization": `${token}`
-       }
-     })
-       .then(res => res.json()) 
-       .then(data => {
-        console.log(data)
-         if (data.error) {
-           message.innerHTML = data.error;
+        if (response.status === 200) {
+          message.innerHTML = data.message;
         } else {
-           message.innerHTML = "Access granted. Test endpoint successful.";
-         }
-       }).catch(err => {
-        // handle fetch error caused by server being inaccessible
-         message.innerHTML = "Unable to connect to server.";
-       });
-   });
+          message.innerHTML = data.error;
+        }
+      } catch (error) {
+        message.innerHTML = "Failed to access endpoint.";
+      }
+    }
+
+    async function updateVisibilityBasedOnRole() {
+      const userRole = await getRoles();
+      if (userRole === 'admin') {
+          document.getElementById('adminButton').style.display = 'block';
+      }
+      if (userRole === 'admin' || userRole === 'moderator') {
+          document.getElementById('moderatorButton').style.display = 'block';
+      }
+    }
+
+    document.getElementById('adminTest').addEventListener('click', () => testEndpoint('admin', '/admin'));
+    document.getElementById('moderatorTest').addEventListener('click', () => testEndpoint('moderator', '/moderator'));
   </script>
 </body>
 </html>

@@ -58,7 +58,7 @@ app.post("/signup", signupLimiter, async (req, res) => {
       storeEncryptedPassword(hash, username);
      // Store the hash with username in the database
       async function storeEncryptedPassword (password, username) {
-       const result = await collection.insertOne({ Username: username, Password: password });
+       const result = await collection.insertOne({ Username: username, Password: password, Role: 'user' });
        client.close();
        res.json({ message: "Sign up successful" });
       }
@@ -101,7 +101,7 @@ app.post("/login", loginLimiter, async (req, res) => {
 
       if (result) {
         // Password is correct
-        const token = jwt.sign({ id: user._id }, config.jwtSecret, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user._id, role: user.Role }, config.jwtSecret, { expiresIn: '1h' });
         console.log("--> A visitor logged in. Token: " + token) //Debug
         res.status(200).json({ message: "Login successful", token });
       } else {
@@ -154,6 +154,37 @@ app.post("/verify", async (req, res) => {
 
 
 
+
+app.get('/roles', function(req, res) {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(403).send({ auth: false, message: 'No token provided.' });
+
+  jwt.verify(token, config.jwtSecret, function(err, decoded) {
+      if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+
+      res.status(200).send({ role: decoded.role });
+  });
+});
+
+function checkRole(roles) {
+  return function(req, res, next) {
+      const token = req.headers['authorization'];
+      if (!token) return res.status(403).send({ auth: false, message: 'No token provided.' });
+
+      jwt.verify(token, config.jwtSecret, function(err, decoded) {
+          if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+
+          if (roles.includes(decoded.role)) {
+              req.userId = decoded.id;
+              req.userRole = decoded.role;
+              next();
+          } else {
+              res.status(403).send({ auth: false, message: 'You do not have the required role.' });
+          }
+      });
+  }
+}
+
 app.get("/test", (req, res) => {
   const token = req.headers["authorization"];
   if (!token) return res.status(401).send("Access denied. No token provided.");
@@ -165,6 +196,40 @@ app.get("/test", (req, res) => {
     res.status(400).json({"error": `Access denied, invalid token. (Refresh to login)`});
   }
 });
+
+app.get('/admin', (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).send("Access denied. No token provided.");
+
+  try {
+      const decoded = jwt.verify(token, config.jwtSecret);
+      if (decoded.role !== 'admin') {
+          return res.status(403).send("Access denied. You don't have admin privileges.");
+      }
+      // Admin code here
+      res.json({ message: "Admin endpoint accessed" });
+  } catch (error) {
+      res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+  }
+});
+
+app.get('/moderator', (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).send("Access denied. No token provided.");
+
+  try {
+      const decoded = jwt.verify(token, config.jwtSecret);
+      if (decoded.role !== 'admin' && decoded.role !== 'moderator') {
+          return res.status(403).send("Access denied. You don't have moderator privileges.");
+      }
+      // Moderator code here
+      res.json({ message: "Moderator endpoint accessed" });
+  } catch (error) {
+      res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+  }
+});
+
+
 
 const port = config.port || 3000;
 app.listen(port, () => console.log(`Listening on port ${port}...`));

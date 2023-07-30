@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>User Signup, Login, and Test Endpoint Example</title>
-  <style>
+<meta charset="utf-8"/>
+<title>User Signup, Login, and Test Endpoint Example</title>
+<style>
     .container {
       max-width: 500px;
       margin: 0 auto;
@@ -31,7 +32,7 @@
       border: 1px solid #ccc;
     }
 
-    button[type="submit"] {
+    button {
       width: 100%;
       padding: 14px 20px;
       margin: 8px 0;
@@ -42,7 +43,7 @@
       cursor: pointer;
     }
 
-    button[type="submit"]:hover {
+    button:hover {
       opacity: 0.8;
     }
 
@@ -50,42 +51,81 @@
       margin-top: 20px;
       font-weight: bold;
     }
-  </style>
+  
+.navbar {
+  background-color: #333;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  width: 100%;
+}
+
+.navbar a {
+  float: left;
+  display: block;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+  font-size: 17px;
+}
+
+.navbar button {
+  float: right;
+  display: block;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  font-size: 17px;
+}
+
+.navbar a:hover, .navbar button:hover {
+  background-color: #ddd;
+  color: black;
+}
+</style>
 </head>
 <body>
-  <div class="container">
-    <form id="signupForm" style="display: none;">
-      <h2>Sign Up</h2>
-      <input type="text" placeholder="Username" id="signupUsername" required>
-      <input type="password" placeholder="Password" id="signupPassword" required>
-      <button type="submit">Submit</button>
-    </form>
-    <form id="loginForm">
-      <h2>Login</h2>
-      <input type="text" placeholder="Username" id="loginUsername" required>
-      <input type="password" placeholder="Password" id="loginPassword" required>
-      <button type="submit">Submit</button>
-      <p>
+<div class="container">
+<form id="signupForm" style="display: none;">
+<h2>Sign Up</h2>
+<input id="signupUsername" placeholder="Username" required="" type="text"/>
+<input id="signupPassword" placeholder="Password" required="" type="password"/>
+<button type="submit">Submit</button>
+</form>
+<form id="loginForm">
+<h2>Login</h2>
+<input id="loginUsername" placeholder="Username" required="" type="text"/>
+<input id="loginPassword" placeholder="Password" required="" type="password"/>
+<button type="submit">Submit</button>
+<p>
         Don't have an account?
         <a href="#" id="showSignup">Sign up</a>
-      </p>
-    </form>
-    <form id="testForm" style="display: none;">
-      <h2 id="testFormTitle">Test Endpoint</h2>
-      <button type="submit">Submit</button>
-    </form>
-    <div class="message" id="message"></div>
-  </div>
-  
-  <div id="adminButton" style="display: none;">
-    <button id="adminTest">Test Admin Endpoint</button>
-  </div>
-  
-  <div id="moderatorButton" style="display: none;">
-    <button id="moderatorTest">Test Moderator Endpoint</button>
-  </div>
+</p>
+</form>
+<form id="testForm" style="display: none;">
+<h2 id="testFormTitle">Test Endpoint</h2>
+<button type="submit">Submit</button>
+<button id="logout_button">Logout ⎋</button>
+<h2>Test Admin Endpoint</h2>
+<button id="adminTest">Test Admin Endpoint</button>
+<h2>Test Moderator Endpoint</h2>
+<button id="moderatorTest">Test Moderator Endpoint</button>
+<div class="message" id="message"></div>
+</form>
+</div>
+<script>
+document.querySelector("#logout_button").addEventListener("click", function() {
+  // Clear the token from the local storage
+  localStorage.removeItem("token");
 
-  <script>
+  // Refresh the page
+  location.reload();
+});
+
+
     const signupForm = document.querySelector("#signupForm");
     const loginForm = document.querySelector("#loginForm");
     const testForm = document.querySelector("#testForm");
@@ -270,18 +310,29 @@
       }
     }
 
-    async function updateVisibilityBasedOnRole() {
-      const userRole = await getRoles();
-      if (userRole === 'admin') {
-          document.getElementById('adminButton').style.display = 'block';
-      }
-      if (userRole === 'admin' || userRole === 'moderator') {
-          document.getElementById('moderatorButton').style.display = 'block';
-      }
-    }
+    
+async function updateVisibilityBasedOnRole() {
+  const userRole = await getRoles();
+  const adminTest = document.getElementById('adminTest');
+  const moderatorTest = document.getElementById('moderatorTest');
+  if (userRole === 'admin') {
+    adminTest.style.display = 'block';
+  }
+  if (userRole === 'admin' || userRole === 'moderator') {
+    moderatorTest.style.display = 'block';
+  }
+}
 
-    document.getElementById('adminTest').addEventListener('click', () => testEndpoint('admin', '/admin'));
-    document.getElementById('moderatorTest').addEventListener('click', () => testEndpoint('moderator', '/moderator'));
-  </script>
+
+document.getElementById('adminTest').addEventListener('click', async (e) => {
+  e.preventDefault();
+  testEndpoint('admin', '/admin');
+});
+
+document.getElementById('moderatorTest').addEventListener('click', async (e) => {
+  e.preventDefault();
+  testEndpoint('moderator', '/moderator');
+});
+</script>
 </body>
 </html>

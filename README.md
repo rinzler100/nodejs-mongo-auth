@@ -10,6 +10,10 @@ My little test for authorized requests to a nodejs server using nodejs, json web
  - [x] Test authorized endpoint
  - [x] Encrypt passwords before storing in MongoDB
 
+ - [ ] Add roles to users.
+ - [ ] Owner role that can assign roles to users via username and manage users.
+ - [ ] Additional frontend pages, such as a user management page.
+
 ## Quick Start Guide
 
 ### Install NodeJS

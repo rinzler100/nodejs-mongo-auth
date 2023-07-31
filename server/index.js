@@ -12,7 +12,7 @@ app.use(cors());
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 100 requests per windowMs
+  max: 10, // limit each IP to 10 requests per windowMs
   message: { message: "Too many login attempts from this IP, please try again after 15 minutes." }
 });
 
@@ -58,7 +58,7 @@ app.post("/signup", signupLimiter, async (req, res) => {
       storeEncryptedPassword(hash, username);
      // Store the hash with username in the database
       async function storeEncryptedPassword (password, username) {
-       const result = await collection.insertOne({ Username: username, Password: password });
+       const result = await collection.insertOne({ Username: username, Password: password, Roles: ['user'] });
        client.close();
        res.json({ message: "Sign up successful" });
       }
@@ -101,7 +101,7 @@ app.post("/login", loginLimiter, async (req, res) => {
 
       if (result) {
         // Password is correct
-        const token = jwt.sign({ id: user._id }, config.jwtSecret, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user._id, roles: user.Roles }, config.jwtSecret, { expiresIn: '1h' });
         console.log("--> A visitor logged in. Token: " + token) //Debug
         res.status(200).json({ message: "Login successful", token });
       } else {
@@ -145,6 +145,8 @@ app.post("/verify", async (req, res) => {
       return;
     }
 
+    // Could add code to refresh token here
+
     res.json({ "token": token, "username": user.Username });
   } catch (error) {
     console.log("--> Session used an invalid token: " + error)
@@ -154,6 +156,37 @@ app.post("/verify", async (req, res) => {
 
 
 
+
+app.get('/roles', function(req, res) {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(403).send({ auth: false, message: 'No token provided.' });
+
+  jwt.verify(token, config.jwtSecret, function(err, decoded) {
+      if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+
+      res.status(200).send({ roles: decoded.roles });
+  });
+});
+
+function checkRole(roles) {
+  return function(req, res, next) {
+      const token = req.headers['authorization'];
+      if (!token) return res.status(403).send({ auth: false, message: 'No token provided.' });
+
+      jwt.verify(token, config.jwtSecret, function(err, decoded) {
+          if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+
+          if (decoded.roles.some(r => roles.includes(r))) {
+              req.userId = decoded.id;
+              req.userRoles = decoded.roles;
+              next();
+          } else {
+              res.status(403).send({ auth: false, message: 'You do not have the required role.' });
+          }
+      });
+  }
+}
+
 app.get("/test", (req, res) => {
   const token = req.headers["authorization"];
   if (!token) return res.status(401).send("Access denied. No token provided.");
@@ -161,10 +194,45 @@ app.get("/test", (req, res) => {
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     res.json({"message": `Authorized, success.`});
+    // console.log("--> A visitor accessed test endpoint.\n `-> Info: " + JSON.stringify(decoded)) //Debug
   } catch (error) {
     res.status(400).json({"error": `Access denied, invalid token. (Refresh to login)`});
   }
 });
+
+app.get('/admin', (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).send("Access denied. No token provided.");
+
+  try {
+      const decoded = jwt.verify(token, config.jwtSecret);
+      if (!decoded.roles.includes('admin')) {
+          return res.status(403).send("Access denied. You don't have admin privileges.");
+      }
+      // Admin code here
+      res.json({ message: "Admin endpoint accessed" });
+  } catch (error) {
+      res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+  }
+});
+
+app.get('/moderator', (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).send("Access denied. No token provided.");
+
+  try {
+      const decoded = jwt.verify(token, config.jwtSecret);
+      if (!decoded.roles.includes('admin') && !decoded.roles.includes('moderator')) {
+          return res.status(403).send("Access denied. You don't have moderator privileges.");
+      }
+      // Moderator code here
+      res.json({ message: "Moderator endpoint accessed" });
+  } catch (error) {
+      res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+  }
+});
+
+
 
 const port = config.port || 3000;
 app.listen(port, () => console.log(`Listening on port ${port}...`));

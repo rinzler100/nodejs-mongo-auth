@@ -58,7 +58,7 @@ app.post("/signup", signupLimiter, async (req, res) => {
       storeEncryptedPassword(hash, username);
      // Store the hash with username in the database
       async function storeEncryptedPassword (password, username) {
-       const result = await collection.insertOne({ Username: username, Password: password, Role: 'user' });
+       const result = await collection.insertOne({ Username: username, Password: password, Roles: ['user'] });
        client.close();
        res.json({ message: "Sign up successful" });
       }
@@ -101,7 +101,7 @@ app.post("/login", loginLimiter, async (req, res) => {
 
       if (result) {
         // Password is correct
-        const token = jwt.sign({ id: user._id, role: user.Role }, config.jwtSecret, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user._id, roles: user.Roles }, config.jwtSecret, { expiresIn: '1h' });
         console.log("--> A visitor logged in. Token: " + token) //Debug
         res.status(200).json({ message: "Login successful", token });
       } else {
@@ -145,6 +145,8 @@ app.post("/verify", async (req, res) => {
       return;
     }
 
+    // Could add code to refresh token here
+
     res.json({ "token": token, "username": user.Username });
   } catch (error) {
     console.log("--> Session used an invalid token: " + error)
@@ -162,7 +164,7 @@ app.get('/roles', function(req, res) {
   jwt.verify(token, config.jwtSecret, function(err, decoded) {
       if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
 
-      res.status(200).send({ role: decoded.role });
+      res.status(200).send({ roles: decoded.roles });
   });
 });
 
@@ -174,9 +176,9 @@ function checkRole(roles) {
       jwt.verify(token, config.jwtSecret, function(err, decoded) {
           if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
 
-          if (roles.includes(decoded.role)) {
+          if (decoded.roles.some(r => roles.includes(r))) {
               req.userId = decoded.id;
-              req.userRole = decoded.role;
+              req.userRoles = decoded.roles;
               next();
           } else {
               res.status(403).send({ auth: false, message: 'You do not have the required role.' });
@@ -204,7 +206,7 @@ app.get('/admin', (req, res) => {
 
   try {
       const decoded = jwt.verify(token, config.jwtSecret);
-      if (decoded.role !== 'admin') {
+      if (!decoded.roles.includes('admin')) {
           return res.status(403).send("Access denied. You don't have admin privileges.");
       }
       // Admin code here
@@ -220,7 +222,7 @@ app.get('/moderator', (req, res) => {
 
   try {
       const decoded = jwt.verify(token, config.jwtSecret);
-      if (decoded.role !== 'admin' && decoded.role !== 'moderator') {
+      if (!decoded.roles.includes('admin') && !decoded.roles.includes('moderator')) {
           return res.status(403).send("Access denied. You don't have moderator privileges.");
       }
       // Moderator code here

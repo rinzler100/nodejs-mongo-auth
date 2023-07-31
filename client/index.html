@@ -109,12 +109,18 @@
 <h2 id="testFormTitle">Test Endpoint</h2>
 <button type="submit">Submit</button>
 <button id="logout_button">Logout ⎋</button>
-<h2>Test Admin Endpoint</h2>
-<button id="adminTest">Test Admin Endpoint</button>
-<h2>Test Moderator Endpoint</h2>
-<button id="moderatorTest">Test Moderator Endpoint</button>
-<div class="message" id="message"></div>
+<div id="adminDiv">
+  <h2>Test Admin Endpoint</h2>
+  <button id="adminTest">Test Admin Endpoint</button>
+</div>
+
+<div id="moderatorDiv">
+  <h2>Test Moderator Endpoint</h2>
+  <button id="moderatorTest">Test Moderator Endpoint</button>
+</div>
+
 </form>
+<div class="message" id="message"></div>
 </div>
 <script>
 document.querySelector("#logout_button").addEventListener("click", function() {
@@ -132,6 +138,10 @@ document.querySelector("#logout_button").addEventListener("click", function() {
     const message = document.querySelector("#message");
     const showSignup = document.querySelector("#showSignup");
     const testFormTitle = document.querySelector("#testFormTitle");
+    const adminDiv = document.querySelector("#adminDiv");
+    const moderatorDiv = document.querySelector("#moderatorDiv");
+    const adminTest = document.getElementById('adminTest');
+    const moderatorTest = document.getElementById('moderatorTest');
 
     window.onload = async () => {
       const token = localStorage.getItem("token");
@@ -161,6 +171,10 @@ document.querySelector("#logout_button").addEventListener("click", function() {
           console.log("Token removed from localStorage. (Error 2)")
         }
       }
+      adminDiv.style.display = 'none';
+      moderatorDiv.style.display = 'none';
+      adminTest.style.display = 'none';
+      moderatorTest.style.display = 'none';
       await updateVisibilityBasedOnRole();
     };
 
@@ -170,34 +184,34 @@ document.querySelector("#logout_button").addEventListener("click", function() {
       loginForm.style.display = "none";
     });
 
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const signupUsername = document.querySelector("#signupUsername").value;
-      const signupPassword = document.querySelector("#signupPassword").value;
+    
+signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const signupUsername = document.querySelector("#signupUsername").value;
+    const signupPassword = document.querySelector("#signupPassword").value;
 
-      try {
+    try {
         const response = await fetch("http://localhost:3000/signup", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: signupUsername,
-            password: signupPassword,
-          }),
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: signupUsername, password: signupPassword })
         });
 
         const data = await response.json();
 
         if (response.status === 200) {
-          message.innerHTML = data.message;
+            message.innerHTML = "Signup successful";
+            signupForm.style.display = "none";
+            loginForm.style.display = "block";
+        } else if (response.status === 429) {
+            message.innerHTML = "Too many requests. Try again later.";
         } else {
-          message.innerHTML = data.error;
+            message.innerHTML = data.error;
         }
-      } catch (error) {
-        message.innerHTML = "Failed to Sign Up";
-      }
-    });
+    } catch (error) {
+        message.innerHTML = "No response from server. Try again later.";
+    }
+});
 
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -225,11 +239,13 @@ document.querySelector("#logout_button").addEventListener("click", function() {
           testForm.style.display = "block";
           message.innerHTML = data.message;
           await updateVisibilityBasedOnRole();
+        } else if (response.status === 429) {
+            message.innerHTML = "Too many requests. Try again later.";
         } else {
           message.innerHTML = data.error;
         }
       } catch (error) {
-        message.innerHTML = "Failed to Login";
+        message.innerHTML = "No response from server. Try again later.";
       }
     });
 
@@ -313,12 +329,13 @@ document.querySelector("#logout_button").addEventListener("click", function() {
     
 async function updateVisibilityBasedOnRole() {
   const userRole = await getRoles();
-  const adminTest = document.getElementById('adminTest');
-  const moderatorTest = document.getElementById('moderatorTest');
+  
   if (userRole === 'admin') {
+    adminDiv.style.display = 'block';
     adminTest.style.display = 'block';
   }
   if (userRole === 'admin' || userRole === 'moderator') {
+    moderatorDiv.style.display = 'block';
     moderatorTest.style.display = 'block';
   }
 }

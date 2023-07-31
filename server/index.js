@@ -12,7 +12,7 @@ app.use(cors());
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 100 requests per windowMs
+  max: 10, // limit each IP to 10 requests per windowMs
   message: { message: "Too many login attempts from this IP, please try again after 15 minutes." }
 });
 
@@ -192,6 +192,7 @@ app.get("/test", (req, res) => {
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     res.json({"message": `Authorized, success.`});
+    // console.log("--> A visitor accessed test endpoint.\n `-> Info: " + JSON.stringify(decoded)) //Debug
   } catch (error) {
     res.status(400).json({"error": `Access denied, invalid token. (Refresh to login)`});
   }

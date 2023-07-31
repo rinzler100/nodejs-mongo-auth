@@ -17,13 +17,13 @@ My little test for authorized requests to a nodejs server using nodejs, json web
 ## Quick Start Guide
 
 ### Install NodeJS
-Node Version Manager (NVM) is one of the easiest ways to install node and keep it up to date.
+Node Version Manager [(NVM)](https://github.com/nvm-sh/nvm#about) is one of the easiest ways to install node and keep it up to date.
 * You can install it using `curl` or `wget`. 
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
 ```
 ```bash
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
 ```
 * Source the new instructions NVM added to `.bashrc` during the installation process. You can either exit and re-enter the shell console, or manually source your `.bashrc` file. This file is almost always located at the root of your home directory. 
 ```bash

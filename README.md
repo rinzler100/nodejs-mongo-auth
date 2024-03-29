@@ -10,9 +10,12 @@ My little test for authorized requests to a nodejs server using nodejs, json web
  - [x] Test authorized endpoint
  - [x] Encrypt passwords before storing in MongoDB
  - [x] Add roles to users.
+ - [x] Owner role that can assign roles to users via username and manage users.
  ---
- - [ ] Owner role that can assign roles to users via username and manage users.
  - [ ] Additional frontend pages, such as a user management page.
+ - [ ] Add a way to delete a users' account.
+ - [ ] Add a way to change a users' password.
+ - [ ] Token refresh on session verify?
 
 ## Quick Start Guide
 

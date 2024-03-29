@@ -200,6 +200,22 @@ app.get("/test", (req, res) => {
   }
 });
 
+app.get('/owner', (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).send("Access denied. No token provided.");
+
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret);
+    if (!decoded.roles.includes('owner')) {
+      return res.status(403).send("Access denied. You don't have owner privileges.");
+    }
+
+    res.json({ message: "Owner endpoint accessed" });
+  } catch (error) {
+    res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+  }
+});
+
 app.get('/admin', (req, res) => {
   const token = req.headers['authorization'];
   if (!token) return res.status(401).send("Access denied. No token provided.");
@@ -232,6 +248,90 @@ app.get('/moderator', (req, res) => {
   }
 });
 
+
+app.post('/owner/addRole', async (req, res) => {
+  const { username, role } = req.body;
+  let client;
+  try { 
+      client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true }); 
+      const db = client.db("userDB");
+      const collection = db.collection("users");
+
+      const token = req.headers['authorization'];
+      if (!token) return res.status(401).send("Access denied. No token provided.");
+
+      try {
+          const decoded = jwt.verify(token, config.jwtSecret);
+          if (!decoded.roles.includes('owner')) {
+              return res.status(403).send("Access denied. You don't have owner privileges.");
+          }
+
+          const user = await collection.findOne({ Username: username });
+
+          if (!user) return res.status(404).send("No user found.");
+
+          // Update user document in the database to add the role
+          await collection.updateOne(
+              { _id: user._id },
+              { $addToSet: { Roles: role } } // Add the role to the Roles array if it doesn't already exist
+          );
+
+          res.status(200).send({ message: `Role '${role}' added to user '${username}' successfully.` });
+      } catch (error) {
+          res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+          console.error(error);
+      }
+  } catch (error) {
+      console.log("--> Error connecting to MongoDB: " + error);
+      res.status(500).json({ error: "Internal server error" });
+  } finally {
+      if (client) {
+          await client.close();
+      }
+  }
+});
+
+app.post('/owner/removeRole', async (req, res) => {
+  const { username, role } = req.body;
+  let client;
+  try { 
+      client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true }); 
+      const db = client.db("userDB");
+      const collection = db.collection("users");
+
+      const token = req.headers['authorization'];
+      if (!token) return res.status(401).send("Access denied. No token provided.");
+
+      try {
+          const decoded = jwt.verify(token, config.jwtSecret);
+          if (!decoded.roles.includes('owner')) {
+              return res.status(403).send("Access denied. You don't have owner privileges.");
+          }
+
+          const user = await collection.findOne({ Username: username });
+
+          if (!user) return res.status(404).send("No user found.");
+
+          // Update user document in the database to remove the role
+          await collection.updateOne(
+              { _id: user._id },
+              { $pull: { Roles: role } } // Remove the role from the Roles array
+          );
+
+          res.status(200).send({ message: `Role '${role}' removed from user '${username}' successfully.` });
+      } catch (error) {
+          res.status(400).json({ error: "Access denied, invalid token. (Refresh to login)" });
+          console.error(error);
+      }
+  } catch (error) {
+      console.log("--> Error connecting to MongoDB: " + error);
+      res.status(500).json({ error: "Internal server error" });
+  } finally {
+      if (client) {
+          await client.close();
+      }
+  }
+});
 
 
 const port = config.port || 3000;

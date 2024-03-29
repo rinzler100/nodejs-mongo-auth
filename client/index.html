@@ -108,7 +108,24 @@
 <form id="testForm" style="display: none;">
 <h2 id="testFormTitle">Test Endpoint</h2>
 <button type="submit">Submit</button>
+</form>
 <button id="logout_button">Logout ⎋</button>
+</div>
+<div id="ownerDiv">
+  <h2>Owner Section</h2>
+  <form id="addRoleForm" style="display: none;">
+    <input id="username" placeholder="Username" required="" type="text"/>
+    <input id="role" placeholder="Role" required="" type="text"/>
+    <button type="submit">Add Role</button>
+  </form>
+  <form id="removeRoleForm">
+    <input id="removeUsername" placeholder="Username" required="" type="text"/>
+    <input id="removeRole" placeholder="Role" required="" type="text"/>
+    <button type="submit">Remove Role</button>
+  </form>
+  <button id="ownerTest">Test Owner Endpoint</button>
+</div>
+
 <div id="adminDiv">
   <h2>Test Admin Endpoint</h2>
   <button id="adminTest">Test Admin Endpoint</button>
@@ -122,7 +139,10 @@
 </form>
 <div class="message" id="message"></div>
 </div>
+
 <script>
+let serverUrl = "http://172.16.0.151:3000";
+
 document.querySelector("#logout_button").addEventListener("click", function() {
   // Clear the token from the local storage
   localStorage.removeItem("token");
@@ -142,12 +162,14 @@ document.querySelector("#logout_button").addEventListener("click", function() {
     const moderatorDiv = document.querySelector("#moderatorDiv");
     const adminTest = document.getElementById('adminTest');
     const moderatorTest = document.getElementById('moderatorTest');
+    const ownerDiv = document.getElementById('ownerDiv');
+    const addRoleForm = document.getElementById('addRoleForm');
 
     window.onload = async () => {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const response = await fetch("http://localhost:3000/verify", {
+          const response = await fetch(`${serverUrl}/verify`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -175,6 +197,7 @@ document.querySelector("#logout_button").addEventListener("click", function() {
       moderatorDiv.style.display = 'none';
       adminTest.style.display = 'none';
       moderatorTest.style.display = 'none';
+      ownerDiv.style.display = 'none';
       await updateVisibilityBasedOnRole();
     };
 
@@ -191,7 +214,7 @@ signupForm.addEventListener("submit", async (e) => {
     const signupPassword = document.querySelector("#signupPassword").value;
 
     try {
-        const response = await fetch("http://localhost:3000/signup", {
+        const response = await fetch(`${serverUrl}/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username: signupUsername, password: signupPassword })
@@ -219,7 +242,7 @@ signupForm.addEventListener("submit", async (e) => {
       const loginPassword = document.querySelector("#loginPassword").value;
 
       try {
-        const response = await fetch("http://localhost:3000/login", {
+        const response = await fetch(`${serverUrl}/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -255,7 +278,7 @@ signupForm.addEventListener("submit", async (e) => {
       const token = localStorage.getItem("token");
 
       try {
-        const response = await fetch("http://localhost:3000/test", {
+        const response = await fetch(`${serverUrl}/test`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -282,7 +305,7 @@ signupForm.addEventListener("submit", async (e) => {
       }
 
       try {
-        const response = await fetch("http://localhost:3000/roles", {
+        const response = await fetch(`${serverUrl}/roles`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -305,7 +328,7 @@ signupForm.addEventListener("submit", async (e) => {
       const token = localStorage.getItem("token");
 
       try {
-        const response = await fetch(`http://localhost:3000${endpoint}`, {
+        const response = await fetch(`${serverUrl}${endpoint}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -338,8 +361,79 @@ async function updateVisibilityBasedOnRole() {
     moderatorDiv.style.display = 'block';
     moderatorTest.style.display = 'block';
   }
+  if (userRoles.includes('owner')) {
+  ownerDiv.style.display = 'block';
+  addRoleForm.style.display = 'block';
+  }
 }
 
+document.getElementById('addRoleForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const usernameToAdjust = document.getElementById('username').value;
+  const roleToAdd = document.getElementById('role').value;
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await fetch(`${serverUrl}/owner/addRole`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token
+      },
+      body: JSON.stringify({ username: usernameToAdjust, role: roleToAdd })
+      
+      
+    });
+
+    if (!response.ok) {
+      throw new Error(`--> HTTP Status: ${response.status} Error: ${response.error}`);
+    }
+
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+});
+
+// Update the event listener for the remove role form submission
+document.getElementById('removeRoleForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const usernameToRemove = document.getElementById('removeUsername').value;
+  const roleToRemove = document.getElementById('removeRole').value;
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await fetch(`${serverUrl}/owner/removeRole`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token
+      },
+      body: JSON.stringify({ username: usernameToRemove, role: roleToRemove })
+    });
+
+    if (!response.ok) {
+      throw new Error(`--> HTTP Status: ${response.status} Error: ${response.error}`);
+    }
+
+    const data = await response.json();
+    console.log(data); // Optional: Log response for debugging
+
+    // Optionally display a message to indicate successful role removal
+    // You can update the UI to reflect the changes as needed
+
+  } catch (error) {
+    console.error(error);
+    // Optionally display an error message to the user
+  }
+});
+
+
+document.getElementById('ownerTest').addEventListener('click', async (e) => {
+  e.preventDefault();
+  testEndpoint('owner', '/owner');
+});
 
 document.getElementById('adminTest').addEventListener('click', async (e) => {
   e.preventDefault();

@@ -1,4 +1,4 @@
-let serverUrl = "http://localhost:3000";
+let serverUrl = "http://172.16.0.151:3000";
 
 const signupForm = document.querySelector("#signupForm");
 const loginForm = document.querySelector("#loginForm");

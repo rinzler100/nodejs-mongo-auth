@@ -5,6 +5,7 @@ const mongodb = require("mongodb");
 const rateLimit = require("express-rate-limit");
 const config = require("./config.json");
 const bcrypt = require("bcrypt");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(express.json());
@@ -186,6 +187,97 @@ function checkRole(roles) {
       });
   }
 }
+
+app.get("/discord", async (req, res) => {
+  const discordCode = req.query.code;
+  if (!discordCode) {
+    res.status(400).json({ error: "Invalid authorization code" });
+    return;
+  }
+
+  // Exchange the authorization code for an access token
+  try {
+    const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: "1227328726002434099",
+        client_secret: config.discord.clientSecret,
+        code: discordCode,
+        redirect_uri: "http://172.16.0.151:3000/discord",
+        grant_type: "authorization_code",
+      }),
+    });
+
+    if (tokenResponse.ok) {
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+      // Use the access token to fetch user ID and username from the Discord API
+      const userResponse = await fetch("https://discord.com/api/users/@me", {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`
+        }
+      });
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        console.log("Discord API response:", userData)
+        const discordUserId = userData.id;
+        const discordUsername = userData.username;
+
+        // Check if the user already exists in the database
+        let client;
+        try {
+          client = await mongodb.MongoClient.connect(config.uri, { useNewUrlParser: true });
+        } catch (error) {
+          console.log("--> Error connecting to MongoDB: " + error)
+          res.status(500).json({ error: "Internal server error" });
+          return;
+        }
+        
+        const db = client.db("userDB");
+        const collection = db.collection("users");
+        const user = await collection.findOne({ Username: discordUserId });
+        if (user) {
+          // User already exists, generate JWT token and log them in
+          const token = jwt.sign({ id: user._id }, config.jwtSecret, { expiresIn: "1h" });
+          res.json({ access_token: token });
+        } else {
+          // User does not exist, create a new entry in the database
+          try {
+            const result = await collection.insertOne({ Username: discordUserId, discordUsername: discordUsername });
+            console.log("New user added to MongoDB:", result.ops[0]);
+            if (result.ops.length > 0) {
+              const token = jwt.sign({ id: result.ops[0]._id }, config.jwtSecret, { expiresIn: "1h" });
+              res.json({ access_token: token });
+            } else {
+              console.log("--> Error storing user in MongoDB: No user data returned");
+              res.status(500).json({ error: "Internal server error" });
+            }
+          } catch (error) {
+            console.log("--> Error storing user in MongoDB: " + error);
+            res.status(500).json({ error: "Internal server error" });
+          }
+        }
+      } else {
+        console.log("Failed to fetch user ID and username from the Discord API");
+        res.status(400).json({ error: "Failed to fetch user ID and username from the Discord API" });
+      }
+    } else {
+      res.status(400).json({ error: "Failed to exchange authorization code for access token" });
+    }
+  } catch (error) {
+    console.error("Error exchanging authorization code:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/oauth-url", (req, res) => {
+  const oauthUrl = "https://discord.com/oauth2/authorize?client_id=1227328726002434099&response_type=code&redirect_uri=http%3A%2F%2F172.16.0.151%3A3000&scope=identify";
+  res.json({ oauth_url: oauthUrl });
+});
 
 app.get("/test", (req, res) => {
   const token = req.headers["authorization"];
